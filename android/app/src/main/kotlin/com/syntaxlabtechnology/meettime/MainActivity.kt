@@ -1,4 +1,4 @@
-package com.example.meettime
+package com.syntaxlabtechnology.meettime
 
 import io.flutter.embedding.android.FlutterActivity
 
