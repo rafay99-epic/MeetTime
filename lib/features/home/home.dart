@@ -67,39 +67,39 @@ class HomePageState extends State<Home> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: colorScheme.surface,
+          color: colorScheme.primary,
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
           child: GNav(
             selectedIndex: _selectedIndex,
             onTabChange: _onItemTapped,
-            backgroundColor: colorScheme.surface,
-            color: colorScheme.onSurface,
-            activeColor: colorScheme.primary,
-            tabBackgroundColor: colorScheme.primary.withOpacity(0.1),
+            backgroundColor: colorScheme.primary,
+            color: colorScheme.onPrimary,
+            activeColor: colorScheme.onPrimary,
+            tabBackgroundColor: colorScheme.onPrimary.withOpacity(0.1),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             gap: 4,
             tabs: [
               GButton(
                 icon: LineIcons.clockAlt,
                 text: 'Time Converter',
-                iconColor: colorScheme.primary,
+                iconColor: colorScheme.onPrimary,
               ),
               GButton(
                 icon: LineIcons.history,
                 text: 'History',
-                iconColor: colorScheme.primary,
+                iconColor: colorScheme.onPrimary,
               ),
               GButton(
                 icon: LineIcons.robot,
                 text: 'Chatbot',
-                iconColor: colorScheme.primary,
+                iconColor: colorScheme.onPrimary,
               ),
               GButton(
                 icon: LineIcons.cog,
                 text: 'Settings',
-                iconColor: colorScheme.primary,
+                iconColor: colorScheme.onPrimary,
               ),
             ],
           ),
