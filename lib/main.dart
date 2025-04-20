@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:meettime/core/provider/chat_bot_provider.dart';
 import 'package:meettime/core/theme/theme.dart';
 import 'package:meettime/features/splashscreen/splashscreen.dart';
+import 'package:provider/provider.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
 void main() {
@@ -14,10 +16,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: const SplashScreen(),
-    );
+    return MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+            create: (_) => ChatbotProvider(
+                apiKey: 'AIzaSyAlcHuNeDpSzw18BXpwvC-ff7e_VppkpjM'),
+          ),
+        ],
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          home: const SplashScreen(),
+        ));
   }
 }

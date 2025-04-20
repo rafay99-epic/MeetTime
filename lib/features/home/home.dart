@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:line_icons/line_icons.dart';
+import 'package:meettime/features/chatbot/chatbot.dart';
 import 'package:meettime/features/history/history.dart';
 import 'package:meettime/features/settings/setting.dart';
 import 'package:meettime/features/time_convter/time_convter.dart';
@@ -19,6 +20,7 @@ class HomePageState extends State<Home> {
   final List<Widget> _pages = const [
     TimeConverterScreen(),
     HistoryConverter(),
+    ChatbotScreen(),
     Setting(),
   ];
 
@@ -87,6 +89,11 @@ class HomePageState extends State<Home> {
               GButton(
                 icon: LineIcons.history,
                 text: 'History',
+                iconColor: colorScheme.primary,
+              ),
+              GButton(
+                icon: LineIcons.robot,
+                text: 'Chatbot',
                 iconColor: colorScheme.primary,
               ),
               GButton(
