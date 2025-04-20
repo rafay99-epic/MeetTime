@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:meettime/features/settings/setting.dart';
 import 'package:meettime/widgets/appbar.dart';
-import 'package:page_transition/page_transition.dart';
 import 'dart:ui';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TimeConverter extends StatefulWidget {
   const TimeConverter({super.key});
@@ -18,98 +18,161 @@ class _TimeConverterState extends State<TimeConverter> {
   String? _sourceZone;
   String? _targetZone;
   String? _convertedTime;
-
-  final List<String> _timeZones = tz.timeZoneDatabase.locations.keys.toList()
+  DateTime? _selectedTime;
+  final List<String> _allTimeZones = tz.timeZoneDatabase.locations.keys.toList()
     ..sort();
+
+  List<String> _filteredSourceTimeZones = [];
+  List<String> _filteredTargetTimeZones = [];
+
+  final TextEditingController _sourceSearchController = TextEditingController();
+  final TextEditingController _targetSearchController = TextEditingController();
+
+  bool _isSourceDropdownOpen = false;
+  bool _isTargetDropdownOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredSourceTimeZones = List.from(_allTimeZones);
+    _filteredTargetTimeZones = List.from(_allTimeZones);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: MeetTimeAppBar(
-        title: 'Time Converter',
-        showBack: false,
-        showSettings: true,
-        onSettingsTap: () {
-          Navigator.push(
-            context,
-            PageTransition(
-              child: const Setting(),
-              childCurrent: widget,
-              type: PageTransitionType.leftToRightJoined,
-            ),
-          );
-        },
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Center(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
+    return GestureDetector(
+      onTap: () {
+        if (_isSourceDropdownOpen) {
+          setState(() => _isSourceDropdownOpen = false);
+        }
+        if (_isTargetDropdownOpen) {
+          setState(() => _isTargetDropdownOpen = false);
+        }
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        appBar: const MeetTimeAppBar(
+          title: 'Time Converter',
+          showBack: false,
+          showSettings: false,
+        ),
+        backgroundColor: const Color(0xFFF5F5F5),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 20),
+              _buildGlassmorphicContainer(
+                theme,
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildTimeInput(theme),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     _buildDropdowns(theme),
                     const SizedBox(height: 30),
                     _buildConvertButton(theme),
                     const SizedBox(height: 30),
-                    if (_convertedTime != null) _buildResult(theme),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: _convertedTime != null
+                          ? _buildResult(theme)
+                          : const SizedBox(),
+                    ),
                   ],
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
     );
   }
 
+  Widget _buildGlassmorphicContainer(ThemeData theme, Widget child) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface.withOpacity(0.7),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: theme.colorScheme.onSurface.withOpacity(0.15),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
   Widget _buildTimeInput(ThemeData theme) {
-    return GestureDetector(
+    return InkWell(
       onTap: () async {
-        final time = await showTimePicker(
+        final TimeOfDay? time = await showTimePicker(
           context: context,
           initialTime: TimeOfDay.now(),
+          builder: (BuildContext context, Widget? child) {
+            return Theme(
+              data: ThemeData.light().copyWith(
+                colorScheme: ColorScheme.light(
+                  primary: theme.colorScheme.primary,
+                ),
+                buttonTheme:
+                    const ButtonThemeData(textTheme: ButtonTextTheme.primary),
+              ),
+              child: child!,
+            );
+          },
         );
         if (time != null) {
-          // ignore: use_build_context_synchronously
-          final formatted = time.format(context);
-          _timeController.text = formatted;
+          setState(() {
+            _selectedTime = DateTime(
+              DateTime.now().year,
+              DateTime.now().month,
+              DateTime.now().day,
+              time.hour,
+              time.minute,
+            );
+            _timeController.text = DateFormat('hh:mm a').format(_selectedTime!);
+          });
         }
       },
-      child: AbsorbPointer(
+      borderRadius: BorderRadius.circular(16),
+      child: IgnorePointer(
         child: TextField(
           controller: _timeController,
-          style: GoogleFonts.poppins(fontSize: 16),
+          style: GoogleFonts.poppins(
+              fontSize: 16, color: theme.colorScheme.onSurface),
           decoration: InputDecoration(
             labelText: 'Select Time',
-            labelStyle: GoogleFonts.poppins(),
+            labelStyle: GoogleFonts.poppins(
+                fontWeight: FontWeight.w500,
+                color: theme.colorScheme.onSurface.withOpacity(0.7)),
             filled: true,
-            fillColor: Colors.white.withOpacity(0.8),
+            fillColor: theme.colorScheme.surface,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide: BorderSide.none,
             ),
-            prefixIcon: const Icon(Icons.access_time),
+            prefixIcon: Icon(Icons.access_time_rounded,
+                color: theme.colorScheme.primary),
+            suffixIcon: Icon(Icons.edit_calendar_rounded,
+                color: theme.colorScheme.onSurface.withOpacity(0.7)),
           ),
         ),
       ),
@@ -124,16 +187,34 @@ class _TimeConverterState extends State<TimeConverter> {
         if (isNarrow) {
           return Column(
             children: [
-              _buildDropdown(
-                label: 'From',
+              _buildSearchableDropdown(
+                theme: theme,
+                label: 'From Timezone',
                 value: _sourceZone,
                 onChanged: (val) => setState(() => _sourceZone = val),
+                searchController: _sourceSearchController,
+                filteredTimeZones: _filteredSourceTimeZones,
+                onSearchChanged: (text) {
+                  _filterTimeZones(text, isSource: true);
+                },
+                isDropdownOpen: _isSourceDropdownOpen,
+                onDropdownToggle: (isOpen) =>
+                    setState(() => _isSourceDropdownOpen = isOpen),
               ),
               const SizedBox(height: 16),
-              _buildDropdown(
-                label: 'To',
+              _buildSearchableDropdown(
+                theme: theme,
+                label: 'To Timezone',
                 value: _targetZone,
                 onChanged: (val) => setState(() => _targetZone = val),
+                searchController: _targetSearchController,
+                filteredTimeZones: _filteredTargetTimeZones,
+                onSearchChanged: (text) {
+                  _filterTimeZones(text, isSource: false);
+                },
+                isDropdownOpen: _isTargetDropdownOpen,
+                onDropdownToggle: (isOpen) =>
+                    setState(() => _isTargetDropdownOpen = isOpen),
               ),
             ],
           );
@@ -141,18 +222,36 @@ class _TimeConverterState extends State<TimeConverter> {
           return Row(
             children: [
               Expanded(
-                child: _buildDropdown(
-                  label: 'From',
+                child: _buildSearchableDropdown(
+                  theme: theme,
+                  label: 'From Timezone',
                   value: _sourceZone,
                   onChanged: (val) => setState(() => _sourceZone = val),
+                  searchController: _sourceSearchController,
+                  filteredTimeZones: _filteredSourceTimeZones,
+                  onSearchChanged: (text) {
+                    _filterTimeZones(text, isSource: true);
+                  },
+                  isDropdownOpen: _isSourceDropdownOpen,
+                  onDropdownToggle: (isOpen) =>
+                      setState(() => _isSourceDropdownOpen = isOpen),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: _buildDropdown(
-                  label: 'To',
+                child: _buildSearchableDropdown(
+                  theme: theme,
+                  label: 'To Timezone',
                   value: _targetZone,
                   onChanged: (val) => setState(() => _targetZone = val),
+                  searchController: _targetSearchController,
+                  filteredTimeZones: _filteredTargetTimeZones,
+                  onSearchChanged: (text) {
+                    _filterTimeZones(text, isSource: false);
+                  },
+                  isDropdownOpen: _isTargetDropdownOpen,
+                  onDropdownToggle: (isOpen) =>
+                      setState(() => _isTargetDropdownOpen = isOpen),
                 ),
               ),
             ],
@@ -162,86 +261,171 @@ class _TimeConverterState extends State<TimeConverter> {
     );
   }
 
-  Widget _buildDropdown({
+  Widget _buildSearchableDropdown({
+    required ThemeData theme,
     required String label,
     required String? value,
     required ValueChanged<String?> onChanged,
+    required TextEditingController searchController,
+    required List<String> filteredTimeZones,
+    required ValueChanged<String> onSearchChanged,
+    required bool isDropdownOpen,
+    required ValueChanged<bool> onDropdownToggle,
   }) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      isExpanded: true,
-      menuMaxHeight: 300,
-      items: _timeZones
-          .map((zone) => DropdownMenuItem(
-                value: zone,
-                child: Text(
-                  zone,
-                  style: GoogleFonts.poppins(fontSize: 14),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FocusScope(
+          child: Focus(
+            onFocusChange: (focus) {
+              if (focus) {
+                onDropdownToggle(true);
+              } else {
+                onDropdownToggle(false);
+              }
+            },
+            child: TextFormField(
+              controller: searchController,
+              style: GoogleFonts.poppins(
+                  fontSize: 14, color: theme.colorScheme.onSurface),
+              decoration: InputDecoration(
+                labelText: label,
+                labelStyle: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                filled: true,
+                fillColor: theme.colorScheme.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
                 ),
-              ))
-          .toList(),
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: GoogleFonts.poppins(),
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.9),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                suffixIcon: Icon(Icons.search,
+                    color: theme.colorScheme.onSurface.withOpacity(0.7)),
+              ),
+              onChanged: onSearchChanged,
+            ),
+          ),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
-      icon: const Icon(Icons.keyboard_arrow_down),
-      dropdownColor: Colors.white,
+        const SizedBox(height: 8),
+        if (isDropdownOpen)
+          Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: theme.colorScheme.onSurface.withOpacity(0.1),
+              ),
+            ),
+            constraints: const BoxConstraints(maxHeight: 200),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: filteredTimeZones.length,
+              itemBuilder: (context, index) {
+                final zone = filteredTimeZones[index];
+                return InkWell(
+                  onTap: () {
+                    onChanged(zone);
+                    searchController.text = zone;
+                    if (searchController == _sourceSearchController) {
+                      _filterTimeZones('', isSource: true);
+                    } else {
+                      _filterTimeZones('', isSource: false);
+                    }
+                    FocusScope.of(context).unfocus();
+                    onDropdownToggle(false);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 12.0),
+                    child: Text(
+                      zone,
+                      style: GoogleFonts.poppins(
+                          fontSize: 14, color: theme.colorScheme.onSurface),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
     );
+  }
+
+  void _filterTimeZones(String query, {required bool isSource}) {
+    List<String> filteredList = _allTimeZones
+        .where((zone) => zone.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+
+    setState(() {
+      if (isSource) {
+        _filteredSourceTimeZones = filteredList;
+      } else {
+        _filteredTargetTimeZones = filteredList;
+      }
+    });
   }
 
   Widget _buildConvertButton(ThemeData theme) {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
+        elevation: 5,
         backgroundColor: theme.colorScheme.primary,
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        foregroundColor: theme.colorScheme.onPrimary,
+        shadowColor: Colors.black26,
+        padding: const EdgeInsets.symmetric(vertical: 18),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
         ),
-        textStyle: GoogleFonts.poppins(fontSize: 16),
+        textStyle:
+            GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
       ),
       onPressed: _convertTime,
-      child: const Text('Convert'),
+      child: const Text('Convert Time'),
     );
   }
 
   Widget _buildResult(ThemeData theme) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(16),
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Center(
-        child: Text(
-          'Converted Time:\n$_convertedTime',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            'Converted Time',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: theme.colorScheme.onSurface.withOpacity(0.8),
+            ),
           ),
-        ),
+          const SizedBox(height: 8),
+          Text(
+            _convertedTime!,
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  void _convertTime() {
+  void _convertTime() async {
     if (_timeController.text.isEmpty ||
         _sourceZone == null ||
         _targetZone == null) {
@@ -250,37 +434,53 @@ class _TimeConverterState extends State<TimeConverter> {
     }
 
     try {
+      if (_selectedTime == null) {
+        setState(() {
+          _convertedTime = 'Invalid Time Selected';
+        });
+        return;
+      }
       final sourceLocation = tz.getLocation(_sourceZone!);
       final targetLocation = tz.getLocation(_targetZone!);
 
-      final timeParts = _timeController.text.split(':');
-      final hour = int.parse(timeParts[0]);
-      final minute = int.parse(timeParts[1].split(' ')[0]);
-      final isPM = _timeController.text.toLowerCase().contains('pm');
-      final adjustedHour = (isPM && hour < 12) ? hour + 12 : hour;
+      final tz.TZDateTime sourceTime = tz.TZDateTime(
+          sourceLocation,
+          _selectedTime!.year,
+          _selectedTime!.month,
+          _selectedTime!.day,
+          _selectedTime!.hour,
+          _selectedTime!.minute);
 
-      final now = DateTime.now();
-      final localTime = tz.TZDateTime(
-        sourceLocation,
-        now.year,
-        now.month,
-        now.day,
-        adjustedHour,
-        minute,
-      );
+      final tz.TZDateTime convertedTime =
+          tz.TZDateTime.from(sourceTime, targetLocation);
 
-      final converted = tz.TZDateTime.from(localTime, targetLocation);
-
-      final timeOfDay =
-          TimeOfDay(hour: converted.hour, minute: converted.minute);
+      final String formattedTime = DateFormat('hh:mm a').format(convertedTime);
 
       setState(() {
-        _convertedTime = timeOfDay.format(context);
+        _convertedTime = formattedTime;
       });
+
+      await _saveConversionToHistory(
+        DateFormat('hh:mm a').format(_selectedTime!),
+        _sourceZone!,
+        formattedTime,
+        _targetZone!,
+      );
     } catch (e) {
       setState(() {
         _convertedTime = 'Error during conversion: ${e.toString()}';
       });
     }
+  }
+
+  Future<void> _saveConversionToHistory(String sourceTime, String sourceZone,
+      String targetTime, String targetZone) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> history = prefs.getStringList('conversionHistory') ?? [];
+
+    String conversionString = '$sourceTime|$sourceZone|$targetTime|$targetZone';
+    history.insert(0, conversionString);
+
+    await prefs.setStringList('conversionHistory', history);
   }
 }

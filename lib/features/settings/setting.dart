@@ -14,7 +14,7 @@ class _SettingState extends State<Setting> {
     return const Scaffold(
       appBar: MeetTimeAppBar(
         title: 'Settings',
-        showBack: true,
+        showBack: false,
         showSettings: false,
       ),
       body: Center(

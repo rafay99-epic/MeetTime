@@ -24,6 +24,9 @@ dependencies:
   icons_launcher: ^3.0.0
   google_nav_bar: ^5.0.7
   line_icons: ^2.0.3
+  flutter_svg: ^2.1.0
+  intl: ^0.20.2
+  shared_preferences: ^2.3.3
 
 dev_dependencies:
   flutter_test:
