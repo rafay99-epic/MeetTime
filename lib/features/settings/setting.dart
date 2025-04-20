@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app_info/package_info_plus.dart';
 import 'package:line_icons/line_icons.dart';
+import 'package:meettime/features/settings/sections/apikey_section.dart';
 import 'package:meettime/utils/clear_shared_Perferance.dart';
 import 'package:meettime/utils/url_launcher.dart';
 import 'package:meettime/widgets/appbar.dart';
@@ -177,6 +178,20 @@ class _SettingState extends State<Setting> {
       body: ListView(
         padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
         children: <Widget>[
+          _buildSettingsHeader(context, 'Common Settings'),
+          _buildSettingItem(
+            context: context,
+            icon: LineIcons.robot,
+            title: 'ChatBot API Key',
+            onPressed: () => {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ApikeySection(),
+                ),
+              )
+            },
+          ),
           _buildSettingsHeader(context, 'Data Management'),
           _buildSettingItem(
             context: context,
