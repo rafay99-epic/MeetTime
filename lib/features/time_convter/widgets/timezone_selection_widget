@@ -1,0 +1,90 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+class TimeZoneSelectionWidget extends StatelessWidget {
+  final String? sourceZone;
+  final String? targetZone;
+  final VoidCallback onSelectSource;
+  final VoidCallback onSelectTarget;
+
+  const TimeZoneSelectionWidget({
+    super.key,
+    this.sourceZone,
+    this.targetZone,
+    required this.onSelectSource,
+    required this.onSelectTarget,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildTimeZoneSelector(
+          context: context,
+          theme: theme,
+          label: 'From Timezone',
+          selectedZone: sourceZone,
+          buttonText: sourceZone ?? 'Select From Timezone',
+          onPressed: onSelectSource,
+        ),
+        const SizedBox(height: 16),
+        _buildTimeZoneSelector(
+          context: context,
+          theme: theme,
+          label: 'To Timezone',
+          selectedZone: targetZone,
+          buttonText: targetZone ?? 'Select To Timezone',
+          onPressed: onSelectTarget,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeZoneSelector({
+    required BuildContext context,
+    required ThemeData theme,
+    required String label,
+    required String? selectedZone,
+    required String buttonText,
+    required VoidCallback onPressed,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: theme.colorScheme.onSurface.withOpacity(0.7),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            elevation: 3,
+            backgroundColor: theme.colorScheme.surface,
+            foregroundColor: theme.colorScheme.onSurface,
+            shadowColor: Colors.black26,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            textStyle: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: selectedZone != null
+                  ? theme.colorScheme.onSurface
+                  : theme.colorScheme.onSurface.withOpacity(0.7),
+            ),
+          ),
+          onPressed: onPressed,
+          child: Text(buttonText),
+        ),
+      ],
+    );
+  }
+}

@@ -1,370 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:meettime/widgets/appbar.dart';
-import 'dart:ui';
-import 'package:timezone/timezone.dart' as tz;
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:meettime/features/time_convter/widgets/build_glassmorphic_container.dart';
+import 'package:meettime/features/time_convter/widgets/timezone_bottom_sheet.dart';
+import 'package:meettime/features/time_convter/widgets/timezone_selection_widget';
+import 'package:meettime/utils/shared_perference_time_conver.dart';
+import 'package:meettime/widgets/appbar.dart';
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
-class TimeConverter extends StatefulWidget {
-  const TimeConverter({super.key});
+import 'widgets/time_input_widget.dart';
+import 'widgets/conversion_result_widget.dart';
+
+class TimeConverterScreen extends StatefulWidget {
+  const TimeConverterScreen({super.key});
 
   @override
-  State<TimeConverter> createState() => _TimeConverterState();
+  State<TimeConverterScreen> createState() => _TimeConverterScreenState();
 }
 
-class _TimeConverterState extends State<TimeConverter> {
-  final TextEditingController _timeController = TextEditingController();
+class _TimeConverterScreenState extends State<TimeConverterScreen> {
   String? _sourceZone;
   String? _targetZone;
   String? _convertedTime;
   DateTime? _selectedTime;
-  final List<String> _allTimeZones = tz.timeZoneDatabase.locations.keys.toList()
-    ..sort();
-
-  List<String> _filteredSourceTimeZones = [];
-  List<String> _filteredTargetTimeZones = [];
-
-  final TextEditingController _sourceSearchController = TextEditingController();
-  final TextEditingController _targetSearchController = TextEditingController();
-
-  bool _isSourceDropdownOpen = false;
-  bool _isTargetDropdownOpen = false;
+  String _selectedTimeText = '';
+  List<String> _allTimeZones = [];
 
   @override
   void initState() {
     super.initState();
-    _filteredSourceTimeZones = List.from(_allTimeZones);
-    _filteredTargetTimeZones = List.from(_allTimeZones);
+    _initializeTimeZones();
+  }
+
+  void _initializeTimeZones() {
+    tzdata.initializeTimeZones();
+    setState(() {
+      _allTimeZones = tz.timeZoneDatabase.locations.keys.toList()..sort();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return GestureDetector(
-      onTap: () {
-        if (_isSourceDropdownOpen) {
-          setState(() => _isSourceDropdownOpen = false);
-        }
-        if (_isTargetDropdownOpen) {
-          setState(() => _isTargetDropdownOpen = false);
-        }
-        FocusScope.of(context).unfocus();
-      },
-      child: Scaffold(
-        resizeToAvoidBottomInset: false,
-        appBar: const MeetTimeAppBar(
-          title: 'Time Converter',
-          showBack: false,
-          showSettings: false,
-        ),
-        backgroundColor: const Color(0xFFF5F5F5),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 20),
-              _buildGlassmorphicContainer(
-                theme,
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildTimeInput(theme),
-                    const SizedBox(height: 24),
-                    _buildDropdowns(theme),
-                    const SizedBox(height: 30),
-                    _buildConvertButton(theme),
-                    const SizedBox(height: 30),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: _convertedTime != null
-                          ? _buildResult(theme)
-                          : const SizedBox(),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      appBar: const MeetTimeAppBar(
+        title: 'Time Converter',
+        showBack: false,
+        showSettings: false,
       ),
-    );
-  }
-
-  Widget _buildGlassmorphicContainer(ThemeData theme, Widget child) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface.withOpacity(0.7),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: theme.colorScheme.onSurface.withOpacity(0.15),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTimeInput(ThemeData theme) {
-    return InkWell(
-      onTap: () async {
-        final TimeOfDay? time = await showTimePicker(
-          context: context,
-          initialTime: TimeOfDay.now(),
-          builder: (BuildContext context, Widget? child) {
-            return Theme(
-              data: ThemeData.light().copyWith(
-                colorScheme: ColorScheme.light(
-                  primary: theme.colorScheme.primary,
-                ),
-                buttonTheme:
-                    const ButtonThemeData(textTheme: ButtonTextTheme.primary),
-              ),
-              child: child!,
-            );
-          },
-        );
-        if (time != null) {
-          setState(() {
-            _selectedTime = DateTime(
-              DateTime.now().year,
-              DateTime.now().month,
-              DateTime.now().day,
-              time.hour,
-              time.minute,
-            );
-            _timeController.text = DateFormat('hh:mm a').format(_selectedTime!);
-          });
-        }
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: IgnorePointer(
-        child: TextField(
-          controller: _timeController,
-          style: GoogleFonts.poppins(
-              fontSize: 16, color: theme.colorScheme.onSurface),
-          decoration: InputDecoration(
-            labelText: 'Select Time',
-            labelStyle: GoogleFonts.poppins(
-                fontWeight: FontWeight.w500,
-                color: theme.colorScheme.onSurface.withOpacity(0.7)),
-            filled: true,
-            fillColor: theme.colorScheme.surface,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            prefixIcon: Icon(Icons.access_time_rounded,
-                color: theme.colorScheme.primary),
-            suffixIcon: Icon(Icons.edit_calendar_rounded,
-                color: theme.colorScheme.onSurface.withOpacity(0.7)),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDropdowns(ThemeData theme) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 500;
-
-        if (isNarrow) {
-          return Column(
-            children: [
-              _buildSearchableDropdown(
-                theme: theme,
-                label: 'From Timezone',
-                value: _sourceZone,
-                onChanged: (val) => setState(() => _sourceZone = val),
-                searchController: _sourceSearchController,
-                filteredTimeZones: _filteredSourceTimeZones,
-                onSearchChanged: (text) {
-                  _filterTimeZones(text, isSource: true);
-                },
-                isDropdownOpen: _isSourceDropdownOpen,
-                onDropdownToggle: (isOpen) =>
-                    setState(() => _isSourceDropdownOpen = isOpen),
-              ),
-              const SizedBox(height: 16),
-              _buildSearchableDropdown(
-                theme: theme,
-                label: 'To Timezone',
-                value: _targetZone,
-                onChanged: (val) => setState(() => _targetZone = val),
-                searchController: _targetSearchController,
-                filteredTimeZones: _filteredTargetTimeZones,
-                onSearchChanged: (text) {
-                  _filterTimeZones(text, isSource: false);
-                },
-                isDropdownOpen: _isTargetDropdownOpen,
-                onDropdownToggle: (isOpen) =>
-                    setState(() => _isTargetDropdownOpen = isOpen),
-              ),
-            ],
-          );
-        } else {
-          return Row(
-            children: [
-              Expanded(
-                child: _buildSearchableDropdown(
-                  theme: theme,
-                  label: 'From Timezone',
-                  value: _sourceZone,
-                  onChanged: (val) => setState(() => _sourceZone = val),
-                  searchController: _sourceSearchController,
-                  filteredTimeZones: _filteredSourceTimeZones,
-                  onSearchChanged: (text) {
-                    _filterTimeZones(text, isSource: true);
-                  },
-                  isDropdownOpen: _isSourceDropdownOpen,
-                  onDropdownToggle: (isOpen) =>
-                      setState(() => _isSourceDropdownOpen = isOpen),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildSearchableDropdown(
-                  theme: theme,
-                  label: 'To Timezone',
-                  value: _targetZone,
-                  onChanged: (val) => setState(() => _targetZone = val),
-                  searchController: _targetSearchController,
-                  filteredTimeZones: _filteredTargetTimeZones,
-                  onSearchChanged: (text) {
-                    _filterTimeZones(text, isSource: false);
-                  },
-                  isDropdownOpen: _isTargetDropdownOpen,
-                  onDropdownToggle: (isOpen) =>
-                      setState(() => _isTargetDropdownOpen = isOpen),
-                ),
-              ),
-            ],
-          );
-        }
-      },
-    );
-  }
-
-  Widget _buildSearchableDropdown({
-    required ThemeData theme,
-    required String label,
-    required String? value,
-    required ValueChanged<String?> onChanged,
-    required TextEditingController searchController,
-    required List<String> filteredTimeZones,
-    required ValueChanged<String> onSearchChanged,
-    required bool isDropdownOpen,
-    required ValueChanged<bool> onDropdownToggle,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        FocusScope(
-          child: Focus(
-            onFocusChange: (focus) {
-              if (focus) {
-                onDropdownToggle(true);
-              } else {
-                onDropdownToggle(false);
-              }
-            },
-            child: TextFormField(
-              controller: searchController,
-              style: GoogleFonts.poppins(
-                  fontSize: 14, color: theme.colorScheme.onSurface),
-              decoration: InputDecoration(
-                labelText: label,
-                labelStyle: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w500,
-                    color: theme.colorScheme.onSurface.withOpacity(0.7)),
-                filled: true,
-                fillColor: theme.colorScheme.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                suffixIcon: Icon(Icons.search,
-                    color: theme.colorScheme.onSurface.withOpacity(0.7)),
-              ),
-              onChanged: onSearchChanged,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (isDropdownOpen)
-          Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: theme.colorScheme.onSurface.withOpacity(0.1),
-              ),
-            ),
-            constraints: const BoxConstraints(maxHeight: 200),
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: filteredTimeZones.length,
-              itemBuilder: (context, index) {
-                final zone = filteredTimeZones[index];
-                return InkWell(
-                  onTap: () {
-                    onChanged(zone);
-                    searchController.text = zone;
-                    if (searchController == _sourceSearchController) {
-                      _filterTimeZones('', isSource: true);
-                    } else {
-                      _filterTimeZones('', isSource: false);
-                    }
-                    FocusScope.of(context).unfocus();
-                    onDropdownToggle(false);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 12.0),
-                    child: Text(
-                      zone,
-                      style: GoogleFonts.poppins(
-                          fontSize: 14, color: theme.colorScheme.onSurface),
-                    ),
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 30),
+            buildGlassmorphicContainer(
+              theme,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TimeInputWidget(
+                    selectedTimeText: _selectedTimeText,
+                    onTap: _selectTime,
                   ),
-                );
-              },
+                  const SizedBox(height: 24),
+                  TimeZoneSelectionWidget(
+                    sourceZone: _sourceZone,
+                    targetZone: _targetZone,
+                    onSelectSource: () =>
+                        _showTimeZoneBottomSheet(context, isSource: true),
+                    onSelectTarget: () =>
+                        _showTimeZoneBottomSheet(context, isSource: false),
+                  ),
+                  const SizedBox(height: 30),
+                  _buildConvertButton(theme),
+                  const SizedBox(height: 30),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _convertedTime != null
+                        ? ConversionResultWidget(convertedTime: _convertedTime!)
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
             ),
-          ),
-      ],
+            const SizedBox(height: 30),
+          ],
+        ),
+      ),
     );
-  }
-
-  void _filterTimeZones(String query, {required bool isSource}) {
-    List<String> filteredList = _allTimeZones
-        .where((zone) => zone.toLowerCase().contains(query.toLowerCase()))
-        .toList();
-
-    setState(() {
-      if (isSource) {
-        _filteredSourceTimeZones = filteredList;
-      } else {
-        _filteredTargetTimeZones = filteredList;
-      }
-    });
   }
 
   Widget _buildConvertButton(ThemeData theme) {
@@ -381,106 +109,129 @@ class _TimeConverterState extends State<TimeConverter> {
         textStyle:
             GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
       ),
-      onPressed: _convertTime,
+      onPressed: _canConvert() ? _convertTime : null,
       child: const Text('Convert Time'),
     );
   }
 
-  Widget _buildResult(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            'Converted Time',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: theme.colorScheme.onSurface.withOpacity(0.8),
+  bool _canConvert() {
+    return _selectedTime != null && _sourceZone != null && _targetZone != null;
+  }
+
+  Future<void> _selectTime() async {
+    final TimeOfDay? time = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime != null
+          ? TimeOfDay.fromDateTime(_selectedTime!)
+          : TimeOfDay.now(),
+      builder: (BuildContext context, Widget? child) {
+        final theme = Theme.of(context);
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: ColorScheme.light(
+              primary: theme.colorScheme.primary,
             ),
+            buttonTheme:
+                const ButtonThemeData(textTheme: ButtonTextTheme.primary),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _convertedTime!,
-            style: GoogleFonts.poppins(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
+          child: child!,
+        );
+      },
+    );
+
+    if (time != null) {
+      setState(() {
+        final now = DateTime.now();
+        _selectedTime = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          time.hour,
+          time.minute,
+        );
+        _selectedTimeText = DateFormat('hh:mm a').format(_selectedTime!);
+        _convertedTime = null;
+      });
+    }
+  }
+
+  void _showTimeZoneBottomSheet(BuildContext context,
+      {required bool isSource}) {
+    if (_allTimeZones.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Loading timezones... Please wait.')));
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext bc) {
+        return TimeZoneBottomSheet(
+          timeZones: _allTimeZones,
+          onTimeZoneSelected: (String zone) {
+            setState(() {
+              if (isSource) {
+                _sourceZone = zone;
+              } else {
+                _targetZone = zone;
+              }
+              _convertedTime = null;
+            });
+            Navigator.pop(context);
+          },
+          theme: Theme.of(context),
+        );
+      },
     );
   }
 
   void _convertTime() async {
-    if (_timeController.text.isEmpty ||
-        _sourceZone == null ||
-        _targetZone == null) {
-      setState(() => _convertedTime = 'Please select all fields.');
+    if (!_canConvert()) {
+      setState(() => _convertedTime = 'Please select time and timezones.');
+      return;
+    }
+
+    if (_allTimeZones.isEmpty) {
+      setState(() => _convertedTime = 'Timezone data not ready.');
       return;
     }
 
     try {
-      if (_selectedTime == null) {
-        setState(() {
-          _convertedTime = 'Invalid Time Selected';
-        });
+      if (!tz.timeZoneDatabase.locations.containsKey(_sourceZone!) ||
+          !tz.timeZoneDatabase.locations.containsKey(_targetZone!)) {
+        setState(() => _convertedTime = 'Invalid timezone selected.');
         return;
       }
+
       final sourceLocation = tz.getLocation(_sourceZone!);
       final targetLocation = tz.getLocation(_targetZone!);
 
-      final tz.TZDateTime sourceTime = tz.TZDateTime(
-          sourceLocation,
-          _selectedTime!.year,
-          _selectedTime!.month,
-          _selectedTime!.day,
-          _selectedTime!.hour,
-          _selectedTime!.minute);
+      final tz.TZDateTime sourceTime =
+          tz.TZDateTime.from(_selectedTime!, sourceLocation);
 
-      final tz.TZDateTime convertedTime =
+      final tz.TZDateTime targetTime =
           tz.TZDateTime.from(sourceTime, targetLocation);
 
-      final String formattedTime = DateFormat('hh:mm a').format(convertedTime);
+      final String formattedTime = DateFormat('hh:mm a').format(targetTime);
+      final String formattedSourceTime =
+          DateFormat('hh:mm a').format(_selectedTime!);
 
       setState(() {
         _convertedTime = formattedTime;
       });
 
-      await _saveConversionToHistory(
-        DateFormat('hh:mm a').format(_selectedTime!),
+      await saveConversionToHistory(
+        formattedSourceTime,
         _sourceZone!,
         formattedTime,
         _targetZone!,
       );
     } catch (e) {
       setState(() {
-        _convertedTime = 'Error during conversion: ${e.toString()}';
+        _convertedTime = 'Error during conversion.';
       });
     }
-  }
-
-  Future<void> _saveConversionToHistory(String sourceTime, String sourceZone,
-      String targetTime, String targetZone) async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> history = prefs.getStringList('conversionHistory') ?? [];
-
-    String conversionString = '$sourceTime|$sourceZone|$targetTime|$targetZone';
-    history.insert(0, conversionString);
-
-    await prefs.setStringList('conversionHistory', history);
   }
 }

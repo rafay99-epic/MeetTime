@@ -17,7 +17,7 @@ class HomePageState extends State<Home> {
   PageController? _pageController;
 
   final List<Widget> _pages = const [
-    TimeConverter(),
+    TimeConverterScreen(),
     HistoryConverter(),
     Setting(),
   ];
