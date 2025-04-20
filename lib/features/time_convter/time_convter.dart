@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:meettime/core/repositories/time_conversion_repo.dart';
 import 'package:meettime/features/time_convter/widgets/build_glassmorphic_container.dart';
 import 'package:meettime/features/time_convter/widgets/timezone_bottom_sheet.dart';
 import 'package:meettime/features/time_convter/widgets/timezone_selection_widget';
 import 'package:meettime/utils/shared_perference_time_conver.dart';
 import 'package:meettime/widgets/appbar.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
-import 'package:timezone/timezone.dart' as tz;
 
 import 'widgets/time_input_widget.dart';
 import 'widgets/conversion_result_widget.dart';
@@ -20,12 +19,14 @@ class TimeConverterScreen extends StatefulWidget {
 }
 
 class _TimeConverterScreenState extends State<TimeConverterScreen> {
+  final TimeConversionRepo _timeConversionRepo = TimeConversionRepo();
+
   String? _sourceZone;
   String? _targetZone;
   String? _convertedTime;
   DateTime? _selectedTime;
   String _selectedTimeText = '';
-  List<String> _allTimeZones = [];
+  bool _isLoadingTimezones = true;
 
   @override
   void initState() {
@@ -34,9 +35,15 @@ class _TimeConverterScreenState extends State<TimeConverterScreen> {
   }
 
   void _initializeTimeZones() {
-    tzdata.initializeTimeZones();
+    _timeConversionRepo.initializeTimeZones();
     setState(() {
-      _allTimeZones = tz.timeZoneDatabase.locations.keys.toList()..sort();
+      _isLoadingTimezones = !_timeConversionRepo.isInitialized;
+      if (!_isLoadingTimezones) {
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load timezone data.')),
+        );
+      }
     });
   }
 
@@ -109,13 +116,24 @@ class _TimeConverterScreenState extends State<TimeConverterScreen> {
         textStyle:
             GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
       ),
-      onPressed: _canConvert() ? _convertTime : null,
-      child: const Text('Convert Time'),
+      onPressed: _isLoadingTimezones || !_canConvert() ? null : _convertTime,
+      child: _isLoadingTimezones
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ))
+          : const Text('Convert Time'),
     );
   }
 
   bool _canConvert() {
-    return _selectedTime != null && _sourceZone != null && _targetZone != null;
+    return !_isLoadingTimezones &&
+        _selectedTime != null &&
+        _sourceZone != null &&
+        _targetZone != null;
   }
 
   Future<void> _selectTime() async {
@@ -157,9 +175,24 @@ class _TimeConverterScreenState extends State<TimeConverterScreen> {
 
   void _showTimeZoneBottomSheet(BuildContext context,
       {required bool isSource}) {
-    if (_allTimeZones.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Loading timezones... Please wait.')));
+    if (_isLoadingTimezones || !_timeConversionRepo.isInitialized) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Timezones loading or failed to load.')));
+      return;
+    }
+
+    List<String> timeZones;
+    try {
+      timeZones = _timeConversionRepo.getAllTimeZones();
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error getting timezones: $e')));
+      return;
+    }
+
+    if (timeZones.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('No timezones found.')));
       return;
     }
 
@@ -169,7 +202,7 @@ class _TimeConverterScreenState extends State<TimeConverterScreen> {
       backgroundColor: Colors.transparent,
       builder: (BuildContext bc) {
         return TimeZoneBottomSheet(
-          timeZones: _allTimeZones,
+          timeZones: timeZones,
           onTimeZoneSelected: (String zone) {
             setState(() {
               if (isSource) {
@@ -193,45 +226,40 @@ class _TimeConverterScreenState extends State<TimeConverterScreen> {
       return;
     }
 
-    if (_allTimeZones.isEmpty) {
-      setState(() => _convertedTime = 'Timezone data not ready.');
-      return;
-    }
-
     try {
-      if (!tz.timeZoneDatabase.locations.containsKey(_sourceZone!) ||
-          !tz.timeZoneDatabase.locations.containsKey(_targetZone!)) {
-        setState(() => _convertedTime = 'Invalid timezone selected.');
-        return;
-      }
+      final result = _timeConversionRepo.convertTime(
+        sourceTime: _selectedTime!,
+        sourceZone: _sourceZone!,
+        targetZone: _targetZone!,
+      );
 
-      final sourceLocation = tz.getLocation(_sourceZone!);
-      final targetLocation = tz.getLocation(_targetZone!);
-
-      final tz.TZDateTime sourceTime =
-          tz.TZDateTime.from(_selectedTime!, sourceLocation);
-
-      final tz.TZDateTime targetTime =
-          tz.TZDateTime.from(sourceTime, targetLocation);
-
-      final String formattedTime = DateFormat('hh:mm a').format(targetTime);
       final String formattedSourceTime =
           DateFormat('hh:mm a').format(_selectedTime!);
 
       setState(() {
-        _convertedTime = formattedTime;
+        _convertedTime = result;
       });
 
       await saveConversionToHistory(
         formattedSourceTime,
         _sourceZone!,
-        formattedTime,
+        result,
         _targetZone!,
+      );
+    } on TimeConversionException catch (e) {
+      setState(() {
+        _convertedTime = 'Error: ${e.message}';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Conversion Error: ${e.message}')),
       );
     } catch (e) {
       setState(() {
-        _convertedTime = 'Error during conversion.';
+        _convertedTime = 'An unexpected error occurred.';
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     }
   }
 }

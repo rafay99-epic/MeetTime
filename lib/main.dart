@@ -4,7 +4,7 @@ import 'package:meettime/features/splashscreen/splashscreen.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
 void main() {
-  tz.initializeTimeZones(); // Required to load all time zones
+  tz.initializeTimeZones();
 
   runApp(const MyApp());
 }
