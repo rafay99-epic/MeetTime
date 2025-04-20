@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:meettime/core/repositories/time_conversion_repo.dart';
-import 'package:meettime/features/time_convter/widgets/build_glassmorphic_container.dart';
 import 'package:meettime/features/time_convter/widgets/timezone_bottom_sheet.dart';
 import 'package:meettime/features/time_convter/widgets/timezone_selection_widget';
 import 'package:meettime/utils/shared_perference_time_conver.dart';
 import 'package:meettime/widgets/appbar.dart';
-
 import 'widgets/time_input_widget.dart';
 import 'widgets/conversion_result_widget.dart';
 
@@ -19,7 +17,7 @@ class TimeConverterScreen extends StatefulWidget {
 }
 
 class _TimeConverterScreenState extends State<TimeConverterScreen> {
-  final TimeConversionRepo _timeConversionRepo = TimeConversionRepo();
+  final _repo = TimeConversionRepo();
 
   String? _sourceZone;
   String? _targetZone;
@@ -34,17 +32,18 @@ class _TimeConverterScreenState extends State<TimeConverterScreen> {
     _initializeTimeZones();
   }
 
-  void _initializeTimeZones() {
-    _timeConversionRepo.initializeTimeZones();
-    setState(() {
-      _isLoadingTimezones = !_timeConversionRepo.isInitialized;
-      if (!_isLoadingTimezones) {
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to load timezone data.')),
-        );
-      }
-    });
+  void _initializeTimeZones() async {
+    try {
+      _repo.initializeTimeZones();
+    } catch (_) {
+      _showSnackBar('Failed to load timezone data.');
+    } finally {
+      setState(() => _isLoadingTimezones = !_repo.isInitialized);
+    }
+  }
+
+  void _showSnackBar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -59,15 +58,13 @@ class _TimeConverterScreenState extends State<TimeConverterScreen> {
         showSettings: false,
       ),
       backgroundColor: const Color(0xFFF5F5F5),
-      body: SingleChildScrollView(
+      body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 30),
-            buildGlassmorphicContainer(
-              theme,
-              Column(
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TimeInputWidget(
@@ -78,24 +75,21 @@ class _TimeConverterScreenState extends State<TimeConverterScreen> {
                   TimeZoneSelectionWidget(
                     sourceZone: _sourceZone,
                     targetZone: _targetZone,
-                    onSelectSource: () =>
-                        _showTimeZoneBottomSheet(context, isSource: true),
-                    onSelectTarget: () =>
-                        _showTimeZoneBottomSheet(context, isSource: false),
+                    onSelectSource: () => _openZonePicker(isSource: true),
+                    onSelectTarget: () => _openZonePicker(isSource: false),
                   ),
                   const SizedBox(height: 30),
                   _buildConvertButton(theme),
                   const SizedBox(height: 30),
                   AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
+                    duration: const Duration(milliseconds: 250),
                     child: _convertedTime != null
                         ? ConversionResultWidget(convertedTime: _convertedTime!)
-                        : const SizedBox.shrink(),
+                        : const SizedBox(height: 60),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 30),
           ],
         ),
       ),
@@ -122,77 +116,54 @@ class _TimeConverterScreenState extends State<TimeConverterScreen> {
               height: 20,
               width: 20,
               child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ))
+                  strokeWidth: 2, color: Colors.white),
+            )
           : const Text('Convert Time'),
     );
   }
 
   bool _canConvert() {
-    return !_isLoadingTimezones &&
-        _selectedTime != null &&
-        _sourceZone != null &&
-        _targetZone != null;
+    return _selectedTime != null && _sourceZone != null && _targetZone != null;
   }
 
   Future<void> _selectTime() async {
-    final TimeOfDay? time = await showTimePicker(
+    final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime != null
           ? TimeOfDay.fromDateTime(_selectedTime!)
           : TimeOfDay.now(),
-      builder: (BuildContext context, Widget? child) {
-        final theme = Theme.of(context);
-        return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: ColorScheme.light(
-              primary: theme.colorScheme.primary,
-            ),
-            buttonTheme:
-                const ButtonThemeData(textTheme: ButtonTextTheme.primary),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.light(
+            primary: Theme.of(context).colorScheme.primary,
           ),
-          child: child!,
-        );
-      },
+        ),
+        child: child!,
+      ),
     );
 
-    if (time != null) {
+    if (picked != null) {
+      final now = DateTime.now();
+      final newTime =
+          DateTime(now.year, now.month, now.day, picked.hour, picked.minute);
       setState(() {
-        final now = DateTime.now();
-        _selectedTime = DateTime(
-          now.year,
-          now.month,
-          now.day,
-          time.hour,
-          time.minute,
-        );
-        _selectedTimeText = DateFormat('hh:mm a').format(_selectedTime!);
+        _selectedTime = newTime;
+        _selectedTimeText = DateFormat('hh:mm a').format(newTime);
         _convertedTime = null;
       });
     }
   }
 
-  void _showTimeZoneBottomSheet(BuildContext context,
-      {required bool isSource}) {
-    if (_isLoadingTimezones || !_timeConversionRepo.isInitialized) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Timezones loading or failed to load.')));
+  void _openZonePicker({required bool isSource}) {
+    if (_isLoadingTimezones || !_repo.isInitialized) {
+      _showSnackBar('Timezones are still loading or failed to load.');
       return;
     }
 
-    List<String> timeZones;
-    try {
-      timeZones = _timeConversionRepo.getAllTimeZones();
-    } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error getting timezones: $e')));
-      return;
-    }
+    final zones = _repo.getAllTimeZones();
 
-    if (timeZones.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('No timezones found.')));
+    if (zones.isEmpty) {
+      _showSnackBar('No timezones found.');
       return;
     }
 
@@ -200,66 +171,55 @@ class _TimeConverterScreenState extends State<TimeConverterScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext bc) {
-        return TimeZoneBottomSheet(
-          timeZones: timeZones,
-          onTimeZoneSelected: (String zone) {
-            setState(() {
-              if (isSource) {
-                _sourceZone = zone;
-              } else {
-                _targetZone = zone;
-              }
-              _convertedTime = null;
-            });
-            Navigator.pop(context);
-          },
-          theme: Theme.of(context),
-        );
-      },
+      builder: (_) => TimeZoneBottomSheet(
+        timeZones: zones,
+        onTimeZoneSelected: (zone) {
+          setState(() {
+            if (isSource) {
+              _sourceZone = zone;
+            } else {
+              _targetZone = zone;
+            }
+            _convertedTime = null;
+          });
+          Navigator.pop(context);
+        },
+        theme: Theme.of(context),
+      ),
     );
   }
 
-  void _convertTime() async {
-    if (!_canConvert()) {
-      setState(() => _convertedTime = 'Please select time and timezones.');
-      return;
-    }
-
+  Future<void> _convertTime() async {
     try {
-      final result = _timeConversionRepo.convertTime(
+      final result = _repo.convertTime(
         sourceTime: _selectedTime!,
         sourceZone: _sourceZone!,
         targetZone: _targetZone!,
       );
 
-      final String formattedSourceTime =
-          DateFormat('hh:mm a').format(_selectedTime!);
+      final formattedSource = DateFormat('hh:mm a').format(_selectedTime!);
 
       setState(() {
         _convertedTime = result;
       });
 
       await saveConversionToHistory(
-        formattedSourceTime,
+        formattedSource,
         _sourceZone!,
         result,
         _targetZone!,
       );
     } on TimeConversionException catch (e) {
-      setState(() {
-        _convertedTime = 'Error: ${e.message}';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Conversion Error: ${e.message}')),
-      );
+      _handleError('Conversion Error: ${e.message}');
     } catch (e) {
-      setState(() {
-        _convertedTime = 'An unexpected error occurred.';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      _handleError('Unexpected error: $e');
     }
+  }
+
+  void _handleError(String msg) {
+    setState(() {
+      _convertedTime = msg;
+    });
+    _showSnackBar(msg);
   }
 }

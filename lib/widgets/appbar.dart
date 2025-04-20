@@ -9,6 +9,7 @@ class MeetTimeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool showBack;
   final bool showSettings;
   final VoidCallback? onSettingsTap;
+  final Widget? leading;
 
   const MeetTimeAppBar({
     super.key,
@@ -18,24 +19,35 @@ class MeetTimeAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.showBack = false,
     this.showSettings = false,
     this.onSettingsTap,
+    this.leading,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isTablet = MediaQuery.of(context).size.width > 600;
+    final horizontalPadding = isTablet ? 24.0 : 16.0;
 
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.primary,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-              16, 16, 16, 12), // Increased vertical padding
+          padding:
+              EdgeInsets.fromLTRB(horizontalPadding, 16, horizontalPadding, 12),
           child: Row(
             children: [
-              if (showBack)
+              if (leading != null)
+                leading!
+              else if (showBack)
                 IconButton(
                   icon: Icon(LineIcons.arrowLeft,
                       color: theme.colorScheme.onPrimary),
@@ -43,13 +55,20 @@ class MeetTimeAppBar extends StatelessWidget implements PreferredSizeWidget {
                   splashRadius: 24,
                 ),
               Expanded(
-                child: Text(
-                  title,
-                  textAlign: centerTitle ? TextAlign.center : TextAlign.start,
-                  style: GoogleFonts.poppins(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onPrimary,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Hero(
+                    tag: 'appbar-title',
+                    child: Text(
+                      title,
+                      textAlign:
+                          centerTitle ? TextAlign.center : TextAlign.start,
+                      style: GoogleFonts.poppins(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onPrimary,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -59,7 +78,11 @@ class MeetTimeAppBar extends StatelessWidget implements PreferredSizeWidget {
                   onPressed: onSettingsTap,
                   splashRadius: 24,
                 ),
-              if (actions != null) ...actions!,
+              if (actions != null)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: actions!,
+                ),
             ],
           ),
         ),
