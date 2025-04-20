@@ -72,7 +72,7 @@ class HomePageState extends State<Home> {
         color: colorScheme.onPrimary,
         activeColor: colorScheme.onPrimary,
         tabBackgroundColor: colorScheme.onPrimary.withOpacity(0.1),
-        padding: const EdgeInsets.all(27),
+        padding: const EdgeInsets.all(15),
         tabs: [
           GButton(
             icon: LineIcons.clockAlt,
