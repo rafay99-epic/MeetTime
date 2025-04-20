@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
-import 'package:meettime/features/home/home.dart';
+import 'package:meettime/features/time_convter/time_convter.dart';
 import 'package:page_transition/page_transition.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -45,7 +45,7 @@ class _SplashScreenState extends State<SplashScreen>
           Navigator.pushAndRemoveUntil(
             context,
             PageTransition(
-              child: const Home(),
+              child: const TimeConverter(),
               type: PageTransitionType.fade,
               duration: const Duration(milliseconds: 500),
             ),

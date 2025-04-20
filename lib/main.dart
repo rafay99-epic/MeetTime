@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:meettime/core/theme/theme.dart';
 import 'package:meettime/features/splashscreen/splashscreen.dart';
+import 'package:timezone/data/latest.dart' as tz;
 
 void main() {
+  tz.initializeTimeZones(); // Required to load all time zones
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
