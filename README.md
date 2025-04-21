@@ -6,8 +6,6 @@ MeetTime prioritizes your privacy. It provides accurate time zone conversions wi
 
 The app features a built-in AI assistant powered by **Google AI**. If you're uncertain about your time zone or need assistance converting times, simply ask the assistant directly within the app.
 
----
-
 ## ✨ Key Features
 
 - **🌍 Accurate Time Zone Conversion:** Easily convert time from your current location to any time zone worldwide with a clean and intuitive interface.
@@ -21,7 +19,7 @@ The app features a built-in AI assistant powered by **Google AI**. If you're unc
 
 Ready to jump right in? Download the latest MeetTime APK directly from the following link:
 
-**[Download MeetTime APK](https://rafay99.com/meettime.apk)**
+**[Download MeetTime APK](https://rafay99.com/MeetTime-APK)**
 
 **Important:** Installing an APK from an external source may require you to adjust your device's security settings to allow installation from unknown sources. Exercise caution and ensure you trust the source before installing any APK.
 
